@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PrivacyContent from "../components/legal/PrivacyContent";
+import PrivacyContent from "../../components/legal/PrivacyContent";
 
 export const metadata: Metadata = {
   title: "Политика конфиденциальности — JobGo",

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import TermsContent from "@/components/legal/TermsContent";
+import TermsContent from "../../components/legal/TermsContent";
 
 export const metadata: Metadata = {
   title: "Пользовательское соглашение — JobGo",
