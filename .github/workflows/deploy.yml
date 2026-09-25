@@ -27,7 +27,7 @@ jobs:
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -85,7 +85,6 @@ jobs:
             echo "======================================"
 
             mkdir -p /opt/jobgo
-
             cd /opt/jobgo
 
             echo "=== Current directory ==="
@@ -95,7 +94,7 @@ jobs:
             docker --version
 
             echo "=== Docker Compose version ==="
-            docker compose version || docker-compose --version
+            docker-compose --version
 
             echo "=== Login to GHCR ==="
 
@@ -105,11 +104,11 @@ jobs:
 
             echo "=== Pull latest Landing image ==="
 
-            docker compose pull landing
+            docker-compose pull landing
 
             echo "=== Start Landing ==="
 
-            docker compose up -d --remove-orphans landing
+            docker-compose up -d --remove-orphans landing
 
             echo "=== Waiting for container ==="
 
@@ -121,7 +120,7 @@ jobs:
 
             echo "=== Landing status ==="
 
-            docker compose ps landing
+            docker-compose ps landing
 
             echo "======================================"
             echo "       DEPLOY COMPLETED"
@@ -146,12 +145,12 @@ jobs:
 
             echo "=== Containers ==="
 
-            docker compose ps
+            docker-compose ps
 
             echo ""
             echo "=== Landing logs ==="
 
-            docker compose logs --tail=30 landing || true
+            docker-compose logs --tail=30 landing || true
 
             echo ""
             echo "======================================"
