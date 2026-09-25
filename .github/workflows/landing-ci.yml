@@ -4,8 +4,7 @@ on:
   push:
     branches: ["main", "develop"]
     paths:
-      - "landing/**"
-      - "docker-compose.yml"
+      - "**"
       - ".github/workflows/landing-ci.yml"
 
   workflow_dispatch:
@@ -46,8 +45,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./landing
-          file: ./landing/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -60,7 +59,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Deploy Landing to VPS
+      - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -72,16 +71,16 @@ jobs:
 
             cd /opt/jobgo
 
-            echo "==> Pull latest images"
+            echo "==> Pull latest JobGo Landing image"
             docker compose pull landing
 
-            echo "==> Restart landing"
+            echo "==> Restart JobGo Landing"
             docker compose up -d --remove-orphans landing
 
-            echo "==> Remove unused images"
+            echo "==> Cleanup unused images"
             docker image prune -f
 
-            echo "==> Container status"
+            echo "==> Status"
             docker compose ps landing
 
             echo "==> Deployment completed"
