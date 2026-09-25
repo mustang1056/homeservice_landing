@@ -1,0 +1,12 @@
+services:
+
+  landing:
+    image: ghcr.io/mustang1056/homeservice_landing/landing:main
+    container_name: jobgo_landing
+    restart: unless-stopped
+
+    ports:
+      - "3010:3000"
+
+    environment:
+      NODE_ENV: production
