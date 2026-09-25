@@ -10,6 +10,10 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: mustang1056/jobgo/landing
+  IMAGE_TAG: main
+  CONTAINER_NAME: jobgo_landing
+  HOST_PORT: 3010
+  CONTAINER_PORT: 3000
 
 jobs:
   build-and-push:
@@ -37,7 +41,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=raw,value=main
             type=sha,format=short
 
       - name: Build and push Docker image
@@ -50,26 +54,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   deploy:
-    name: Deploy to VPS
+    name: Deploy Landing to VPS
     runs-on: ubuntu-latest
 
     needs: build-and-push
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Copy docker-compose.yml to VPS
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "/opt/jobgo/"
-          overwrite: true
-
-      - name: Deploy Landing to VPS
+      - name: Deploy Landing
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -84,49 +75,92 @@ jobs:
             echo "       JOBGO LANDING DEPLOY"
             echo "======================================"
 
-            mkdir -p /opt/jobgo
-            cd /opt/jobgo
+            IMAGE="ghcr.io/mustang1056/jobgo/landing:main"
+            CONTAINER="jobgo_landing"
 
-            echo "=== Current directory ==="
-            pwd
-
+            echo ""
             echo "=== Docker version ==="
             docker --version
 
+            echo ""
             echo "=== Docker Compose version ==="
-            docker-compose --version
+            docker-compose --version || true
 
+            echo ""
             echo "=== Login to GHCR ==="
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
               -u "${{ github.actor }}" \
               --password-stdin
 
-            echo "=== Pull latest Landing image ==="
+            echo ""
+            echo "=== Pull JobGo Landing image ==="
 
-            docker-compose pull landing
+            docker pull "$IMAGE"
 
-            echo "=== Start Landing ==="
+            echo ""
+            echo "=== Remove old JobGo container ==="
 
-            docker-compose up -d --remove-orphans landing
+            docker rm -f jobgo_landing 2>/dev/null || true
 
+            echo ""
+            echo "=== Remove old HomeService Landing container ==="
+
+            docker rm -f homeservice_landing 2>/dev/null || true
+
+            echo ""
+            echo "=== Start new JobGo Landing container ==="
+
+            docker run -d \
+              --name "$CONTAINER" \
+              --restart unless-stopped \
+              -p 3010:3000 \
+              "$IMAGE"
+
+            echo ""
             echo "=== Waiting for container ==="
 
             sleep 5
 
-            echo "=== Cleanup old images ==="
+            echo ""
+            echo "=== Container status ==="
+
+            docker ps \
+              --filter "name=$CONTAINER" \
+              --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
+            echo ""
+            echo "=== Landing logs ==="
+
+            docker logs --tail=50 "$CONTAINER"
+
+            echo ""
+            echo "=== HTTP check ==="
+
+            if curl -f --max-time 10 http://127.0.0.1:3010/privacy; then
+              echo ""
+              echo "======================================"
+              echo "     PRIVACY PAGE OK"
+              echo "======================================"
+            else
+              echo ""
+              echo "======================================"
+              echo "     PRIVACY PAGE CHECK FAILED"
+              echo "======================================"
+              exit 1
+            fi
+
+            echo ""
+            echo "=== Cleanup old Docker images ==="
 
             docker image prune -f
 
-            echo "=== Landing status ==="
-
-            docker-compose ps landing
-
+            echo ""
             echo "======================================"
             echo "       DEPLOY COMPLETED"
             echo "======================================"
 
-      - name: Check Landing logs
+      - name: Check Landing
         if: always()
         uses: appleboy/ssh-action@v1.2.2
         with:
@@ -137,20 +171,22 @@ jobs:
           script: |
             set +e
 
-            cd /opt/jobgo
-
             echo "======================================"
-            echo "       LANDING STATUS"
+            echo "       JOBGO LANDING STATUS"
             echo "======================================"
-
-            echo "=== Containers ==="
-
-            docker-compose ps
 
             echo ""
-            echo "=== Landing logs ==="
+            echo "=== Containers ==="
 
-            docker-compose logs --tail=30 landing || true
+            docker ps \
+              --filter "name=jobgo_landing" \
+              --filter "name=homeservice_landing" \
+              --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
+            echo ""
+            echo "=== JobGo Landing logs ==="
+
+            docker logs --tail=50 jobgo_landing 2>/dev/null || true
 
             echo ""
             echo "======================================"
